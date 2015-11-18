@@ -761,7 +761,7 @@ for line in log_file:
         offset = line.find("Real=");
         if is_gwf_trace(line):
             if not limit_gwf_trace(line):
-                add_row = GWFRow(line_id,line[0:17],line[(offset + 21):],get_row_typegwf_row_type(line))
+                add_row = GWFRow(line_id,line[0:17],line[(offset + 21):],get_gwf_row_type(line))
                 gwf_list.append(add_row)
                 line_id = line_id + 1
 
