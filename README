@@ -1,0 +1,27 @@
+# cs-log-tool
+Log tool for Astro logs
+
+May be started with a GUI or with arguments on the command line.
+
+usage: cs-log-tool.py [-h]
+                      [-gui]
+                      [-l LOG_FILE_NAME]
+                      [-o HTML_LOG_FILE_NAME]
+                      [-d HTML_LOG_FILE_DIR]
+
+GUI
+---
+
+$ cs-log-tool.py -gui
+
+
+Command line
+------------
+
+$ cs-log-tool-py -l /home/myAccount/TheTraceFile.dbg -o TheHtmlFileName -d /home/myAccount/MySavedHtmlFiles
+
+Requirements Linux
+------------------
+The tool need to be able to find the cs-log-tool configuration files.
+
+So the cs-log-tool folder must exists in the PATH
