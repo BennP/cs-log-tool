@@ -6,6 +6,7 @@ import os
 import threading
 import webbrowser
 from tkinter import *
+from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, askdirectory
 
 # --------------------------------------
@@ -539,7 +540,6 @@ def get_config_path():
     env_parts = env_path.split(':')
     for dir in env_parts:
         if os.path.isfile(dir + '/trace-color.conf'):
-            print ('Found the file ' + dir)
             return dir + '/'
     return ''
 
@@ -756,11 +756,11 @@ def parse_file(file_to_parse, output_name, output_dir):
     box_calc_trace_file_name = 'BoxCalc-' + str(output_name) + '.html'
 
     # Debug
-    print ('Astro log file = ' + file_to_parse)
-    print ('Output file    = ' + trace_file_full_name)
-    print ('Output file GWF  = ' + gwf_trace_file_full_name)
-    print ('Output file LocSearch  = ' + loc_search_trace_file_full_name)
-    print ('Output file BoxCalc  = ' + box_calc_trace_file_full_name)
+    #print ('Astro log file = ' + file_to_parse)
+    #print ('Output file    = ' + trace_file_full_name)
+    #print ('Output file GWF  = ' + gwf_trace_file_full_name)
+    #print ('Output file LocSearch  = ' + loc_search_trace_file_full_name)
+    #print ('Output file BoxCalc  = ' + box_calc_trace_file_full_name)
 
     # Open files
     log_file                = open(file=file_to_parse, encoding='iso-8859-1')
@@ -840,16 +840,16 @@ def parse_file(file_to_parse, output_name, output_dir):
     #---------------
     # Result of file runtrough
     #---------------
-    print ("Number of DB Errors = %d" % DbError.error_count)
-    print ("Number of APPL-ERROR = %d" % ApplError.appl_count)
-    print ("Number of CallTrace = %d" % CallTrace.trace_count)
-    print ("Number of SysPar errors = %d" % SysParTrace.syspar_count)
-    print ("Total rows %d" % LogRow.tot_row)
-    print ("Total GWF rows %d" % GWFRow.tot_row)
-    print ("Total Location Search rows %d" % LocSearchRow.tot_row)
-    print ("Total Box Calc rows %d" % BoxCalcRow.tot_row)
-    print ("End mark %d" % end_line)
-    print ("Wrapped mark %d" % wrapped_line)
+    #print ("Number of DB Errors = %d" % DbError.error_count)
+    #print ("Number of APPL-ERROR = %d" % ApplError.appl_count)
+    #print ("Number of CallTrace = %d" % CallTrace.trace_count)
+    #print ("Number of SysPar errors = %d" % SysParTrace.syspar_count)
+    #print ("Total rows %d" % LogRow.tot_row)
+    #print ("Total GWF rows %d" % GWFRow.tot_row)
+    #print ("Total Location Search rows %d" % LocSearchRow.tot_row)
+    #print ("Total Box Calc rows %d" % BoxCalcRow.tot_row)
+    #print ("End mark %d" % end_line)
+    #print ("Wrapped mark %d" % wrapped_line)
 
     #---------------
     # Start making the HTML files
@@ -1046,12 +1046,10 @@ class MyThread (threading.Thread):
         self.html_name = html_name
         self.out_dir = out_dir
     def run(self):
-        print ('Do action {0} with name {1} to output {2}'.format(self.trace_file, self.html_name, self.out_dir))
+        #print ('Do action {0} with name {1} to output {2}'.format(self.trace_file, self.html_name, self.out_dir))
         parse_file( self.trace_file, self.html_name, self.out_dir)
-        #print_time(self.name, self.counter, 5)
-        print ('Exiting ' + self.trace_file )
+        #print ('Exiting ' + self.trace_file )
         url_result = self.out_dir + '/' + self.html_name + '.html'
-        print (url_result)
         webbrowser.open(url_result)
 
 class GuiTraceFileAnalyzer(Frame):
@@ -1080,30 +1078,32 @@ class GuiTraceFileAnalyzer(Frame):
         self.html_file_name = StringVar()
 
         self.selected_file.set('/home/masys/L49MB001.dbg')
-        self.selected_dir.set('/home/masys')
+        self.selected_dir.set('/home/masys/saved-logs')
         self.html_file_name.set('L49MB001')
 
         self.selected_file_entry = Entry(self, width=27, textvariable=self.selected_file)
-        self.selected_file_entry.grid(column=1, row=1, sticky=(W, E))
+        self.selected_file_entry.grid(column=2, row=1, sticky=(W, E))
 
         self.selected_dir_entry = Entry(self, width=17, textvariable=self.selected_dir)
-        self.selected_dir_entry.grid(column=1, row=2, sticky=(W, E))
+        self.selected_dir_entry.grid(column=2, row=2, sticky=(W, E))
 
         self.html_file_name_entry = Entry(self, width=17, textvariable=self.html_file_name)
-        self.html_file_name_entry.grid(column=1, row=3, sticky=(W, E))
+        self.html_file_name_entry.grid(column=2, row=3, sticky=(W, E))
 
         self.selected_file_entry.focus()
 
         # define buttons
-        Button(self, text='Trace File',       command=self.askopenfilename).grid(column=2, row=1, sticky=W)
-        Button(self, text='Output directory', command=self.askdirectory).grid(column=2, row=2, sticky=W)
-        Button(self, text='Analyze',          command=self.analyze_trace).grid(column=2, row=4, sticky=W)
+        Button(self, text='Trace File',       command=self.askopenfilename).grid(column=1, row=1, sticky=W)
+        Button(self, text='Output directory', command=self.askdirectory   ).grid(column=1, row=2, sticky=W)
+        Label (self, text='Result name'                                   ).grid(column=1, row=3, sticky=W)
+        Button(self, text='Analyze',          command=self.analyze_trace  ).grid(column=1, row=4, sticky=E)
+        Button(self, text='Cancel',           command=self.analyze_cancel ).grid(column=2, row=4, sticky=E)
 
         # define options for opening or saving a file
         self.file_opt = options = {}
         options['defaultextension'] = '.dbg'
         options['filetypes'] = [('all files', '.*'), ('text files', '.dbg')]
-        options['initialdir'] = '/home/masys'
+        options['initialdir'] = '/home/masys/saved-logs/'
         options['initialfile'] = 'L49MB001.dbg'
         options['parent'] = root
         options['title'] = 'Select a dbg file'
@@ -1134,7 +1134,7 @@ class GuiTraceFileAnalyzer(Frame):
         # Update UI
         if self.__class__.filename:
             self.selected_file.set(self.__class__.filename)
-            print ('File selected ' + self.__class__.filename)
+            #print ('File selected ' + self.__class__.filename)
 
     def askdirectory(self):
         """Returns a selected directoryname."""
@@ -1143,7 +1143,7 @@ class GuiTraceFileAnalyzer(Frame):
         # Update UI
         if self.__class__.output_dir:
             self.selected_dir.set(self.__class__.output_dir)
-            print ('Directory selected ' + self.__class__.output_dir)
+            #print ('Directory selected ' + self.__class__.output_dir)
 
     def analyze_trace(self):
         """Starts the analyze of the given trace file """
@@ -1152,23 +1152,24 @@ class GuiTraceFileAnalyzer(Frame):
         self.__class__.html_name = self.html_file_name.get()
 
         if self.__class__.filename == ' ':
-            print ('Have no filename, no action done')
+            messagebox.showerror("Trace file", "No trace file given")
         elif self.__class__.html_name == ' ':
-            print ('Have no output trace name , no action .')
+            messagebox.showerror("Output file name", "No name given")
         else:
             if self.__class__.output_dir == '.':
-                print ('Have no output trace name , no action .')
+                messagebox.showerror("Trace destination", "No result destination given")
             else:
-                print ('Using output directory ' + self.__class__.output_dir)
-            print ('Start thread ')
+                mes_text = 'Using output directory ' + self.__class__.output_dir
+                messagebox.showerror("Trace destination", mes_text)
 
             # Create new thread
             thread1 = MyThread(1, self.__class__.filename, self.__class__.html_name, self.__class__.output_dir)
             # Start new Threads
             thread1.start()
 
-
-
+    def analyze_cancel(self):
+        """Exit the program """
+        quit()
 
 #----------------------
 #  Main starts
@@ -1180,7 +1181,6 @@ if args.gui:
     root = Tk()
     root.title(" Astro Trace Analazer ")
     GuiTraceFileAnalyzer(root).pack()
-    print('Start main loop')
     root.mainloop()
 else:
     parse_file( args.log_file_name, args.html_log_file_name, args.html_log_file_dir)
