@@ -22,6 +22,18 @@ $ cs-log-tool-py -l /home/myAccount/TheTraceFile.dbg -o TheHtmlFileName -d /home
 
 Requirements Linux
 ------------------
+
+You need the package python3-tk
+
+$ sudo apt-get install python3-tk
+
+To ensure that you run python3 do this
+
+In .bash_aliases
+
+alias python=python3
+
+
 The tool need to be able to find the cs-log-tool configuration files.
 
 So the cs-log-tool folder must exists in the PATH
