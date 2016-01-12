@@ -1158,9 +1158,6 @@ class GuiTraceFileAnalyzer(Frame):
         else:
             if self.__class__.output_dir == '.':
                 messagebox.showerror("Trace destination", "No result destination given")
-            else:
-                mes_text = 'Using output directory ' + self.__class__.output_dir
-                messagebox.showerror("Trace destination", mes_text)
 
             # Create new thread
             thread1 = MyThread(1, self.__class__.filename, self.__class__.html_name, self.__class__.output_dir)
