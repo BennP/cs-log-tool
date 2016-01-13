@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: iso-8859-1 -*-
 import argparse
 import re
 import os
@@ -8,7 +7,6 @@ import webbrowser
 from tkinter import *
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, askdirectory
-
 # --------------------------------------
 #    Astro log file analyzer
 #
@@ -35,7 +33,6 @@ from tkinter.filedialog import askopenfilename, askdirectory
 #          - Use CSS to reduce html size in all parts
 #
 # --------------------------------------
-
 # Argument parser
 parser = argparse.ArgumentParser(description='Process a logfile from Astro.')
 parser.add_argument('-gui', help='Run it with a GUI', action="store_true")
@@ -695,6 +692,47 @@ def read_css_config(class_list, css_text_list):
         print ("Error: can\'t find file or read data " + 'css.conf')
         raise
 
+
+
+# Make this into a class where we read the file on init
+# and then have methods for fetching the individual parts
+# Then we need a write configuration method also
+# A separat set function for the different parts and then a internal write it all to file.
+def get_saved_gui_input(filename, output_dir, html_name):
+    """
+    Try to get data from old runs
+    """
+    filename = '/home/masys/saved-logs/L49MB001.dbg'
+    output_dir = '/home/masys/saved-logs'
+    html_name = 'L49MB001'
+
+    config_path = get_config_path()
+
+    gui_save_file_name = 'gui-save'
+    try:
+        gui_save_file    = open(config_path + gui_save_file_name)
+        for line in gui_save_file:
+            offset = line.find("filename=")
+            if offset != -1:
+                # This is filename
+                print ('Filename  ' + line[offset:])
+            offset = line.find("outdir=")
+            if offset != -1:
+                # This is outdir
+                print ('Outdir  ' + line[offset:])
+            offset = line.find("html=")
+            if offset != -1:
+                # This is result html name
+                print ('Html name  ' + line[offset:])
+        gui_save_file.close()
+    except IOError:
+        filename = '/home/masys/saved-logs/L49MB001.dbg'
+        output_dir = '/home/masys/saved-logs'
+        html_name = 'L49MB001'
+    return
+
+
+
 def parse_file(file_to_parse, output_name, output_dir):
     """
     Will pars a given Astro log file
@@ -1054,13 +1092,9 @@ class MyThread (threading.Thread):
 
 class GuiTraceFileAnalyzer(Frame):
     """ The Gui selection of files and destination  """
-    #filename = ' '
-    #output_dir = '.'
-    #html_name = ' '
-    # Until we have saved last used dirs
-    filename = '/home/masys/saved-logs/L49MB001.dbg'
-    output_dir = '/home/masys/saved-logs'
-    html_name = 'L49MB001'
+    filename = ' '
+    output_dir = '.'
+    html_name = ' '
 
     def __init__(self, root):
 
@@ -1077,9 +1111,23 @@ class GuiTraceFileAnalyzer(Frame):
         self.selected_dir   = StringVar()
         self.html_file_name = StringVar()
 
-        self.selected_file.set('/home/masys/L49MB001.dbg')
-        self.selected_dir.set('/home/masys/saved-logs')
-        self.html_file_name.set('L49MB001')
+        # Get old used directories if exists
+        tmp_filename = ' '
+        tmp_output_dir = ' '
+        tmp_html_name = ' '
+        get_saved_gui_input(tmp_filename, tmp_output_dir, tmp_html_name)
+
+        #tmp_filename = '/home/masys/saved-logs/L49MB001.dbg'
+        #tmp_output_dir = '/home/masys/saved-logs'
+        #tmp_html_name = 'L49MB001'
+
+        self.__class__.filename = tmp_filename
+        self.__class__.output_dir = tmp_output_dir
+        self.__class__.html_name = tmp_html_name
+
+        self.selected_file.set(tmp_filename)
+        self.selected_dir.set(tmp_output_dir)
+        self.html_file_name.set(tmp_html_name)
 
         self.selected_file_entry = Entry(self, width=27, textvariable=self.selected_file)
         self.selected_file_entry.grid(column=2, row=1, sticky=(W, E))
