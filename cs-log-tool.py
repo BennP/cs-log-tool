@@ -694,44 +694,103 @@ def read_css_config(class_list, css_text_list):
 
 
 
-# Make this into a class where we read the file on init
-# and then have methods for fetching the individual parts
-# Then we need a write configuration method also
-# A separat set function for the different parts and then a internal write it all to file.
-def get_saved_gui_input(filename, output_dir, html_name):
-    """
-    Try to get data from old runs
-    """
-    filename = '/home/masys/saved-logs/L49MB001.dbg'
-    output_dir = '/home/masys/saved-logs'
-    html_name = 'L49MB001'
+class SessionGuiData:
+    """Common base class for saving data between user gui sessions """
+    def __init__(self, save_file_name):
+        self.file_name_token = 'filename='
+        self.out_dir_token   = 'outdir='
+        self.html_token      = 'html='
+        self.file_name       = ' '
+        self.out_dir         = ' '
+        self.html_name       = ' '
+        self.gui_save_file_name = save_file_name
+        self.config_path = get_config_path()
+        # Try to get data from old runs
+        try:
+            gui_save_file    = open(self.config_path + self.gui_save_file_name)
+            for line in gui_save_file:
+                offset = line.find(self.file_name_token)
+                if offset != -1:
+                    # This is filename
+                    self.file_name = line[offset + len(self.file_name_token):].strip('\n')
+                    #print ('Filename  ' + line[offset + len(file_name_token):])
+                offset = line.find(self.out_dir_token)
+                if offset != -1:
+                    # This is outdir
+                    self.out_dir = line[offset + len(self.out_dir_token):].strip('\n')
+                    # print ('Outdir  ' + line[offset + len(out_dir_token):])
+                offset = line.find(self.html_token)
+                if offset != -1:
+                    # This is result html name
+                    self.html_name = line[offset + len(self.html_token):].strip('\n')
+                    #print ('Html name  ' + line[offset + len(html_token):])
+            gui_save_file.close()
+        except IOError:
+            # No gui-save file found create one
+            print('No Gui save file found, creating a new one' + self.config_path + self.gui_save_file_name)
+            self.file_name       = os.getcwd()
+            self.out_dir         = os.getcwd()
+            self.html_name       = 'new'
+            new_gui_save_file = open(self.config_path + self.gui_save_file_name , 'w')
+            new_gui_save_file.write(self.file_name_token + self.file_name + "\n")
+            new_gui_save_file.write(self.out_dir_token + self.out_dir + "\n")
+            new_gui_save_file.write(self.html_token + self.html_name + "\n")
+            new_gui_save_file.close()
 
-    config_path = get_config_path()
+    def get_file_name(self):
+        """
+        Get the file name from the saved data
+        """
+        return self.file_name
 
-    gui_save_file_name = 'gui-save'
-    try:
-        gui_save_file    = open(config_path + gui_save_file_name)
-        for line in gui_save_file:
-            offset = line.find("filename=")
-            if offset != -1:
-                # This is filename
-                print ('Filename  ' + line[offset:])
-            offset = line.find("outdir=")
-            if offset != -1:
-                # This is outdir
-                print ('Outdir  ' + line[offset:])
-            offset = line.find("html=")
-            if offset != -1:
-                # This is result html name
-                print ('Html name  ' + line[offset:])
-        gui_save_file.close()
-    except IOError:
-        filename = '/home/masys/saved-logs/L49MB001.dbg'
-        output_dir = '/home/masys/saved-logs'
-        html_name = 'L49MB001'
-    return
+    def set_file_name(self,file_name):
+        """
+        Set the file name
+        """
+        self.file_name = file_name
 
+    def get_out_dir(self):
+        """
+        Get the output directory from the saved data
+        """
+        return self.out_dir
 
+    def set_out_dir(self,out_dir):
+        """
+        Set the output directory
+        """
+        self.out_dir = out_dir
+
+    def get_html_name(self):
+        """
+        Get the name of the html file from the saved data
+        """
+        return self.html_name
+
+    def set_html_name(self,html_name):
+        """
+        Set the html name
+        """
+        self.html_name = html_name
+
+    def save_gui_input(self):
+        """
+        Save the input field values for future runs
+        """
+        try:
+            # No gui-save file found create one
+            gui_save_file = open(self.config_path + self.gui_save_file_name , 'w')
+            gui_save_file.seek(0)
+            gui_save_file.truncate()
+            gui_save_file.write(self.file_name_token + str(self.file_name) + "\n")
+            gui_save_file.write(self.out_dir_token   + str(self.out_dir)   + "\n")
+            gui_save_file.write(self.html_token      + str(self.html_name) + "\n")
+            gui_save_file.close()
+        except IOError:
+            print('Not able to save gui save data')
+            return
+
+        return
 
 def parse_file(file_to_parse, output_name, output_dir):
     """
@@ -1092,13 +1151,14 @@ class MyThread (threading.Thread):
 
 class GuiTraceFileAnalyzer(Frame):
     """ The Gui selection of files and destination  """
-    filename = ' '
-    output_dir = '.'
-    html_name = ' '
 
     def __init__(self, root):
 
         Frame.__init__(self, root)
+
+        self.filename = 'Dummy'
+        self.output_dir = 'Dummy'
+        self.html_name = 'Dummy'
 
         # options for buttons
         button_opt = {'fill': BOTH, 'padx': 5, 'pady': 5}
@@ -1112,22 +1172,16 @@ class GuiTraceFileAnalyzer(Frame):
         self.html_file_name = StringVar()
 
         # Get old used directories if exists
-        tmp_filename = ' '
-        tmp_output_dir = ' '
-        tmp_html_name = ' '
-        get_saved_gui_input(tmp_filename, tmp_output_dir, tmp_html_name)
 
-        #tmp_filename = '/home/masys/saved-logs/L49MB001.dbg'
-        #tmp_output_dir = '/home/masys/saved-logs'
-        #tmp_html_name = 'L49MB001'
+        self.saved_gui_input = SessionGuiData('gui-save')
 
-        self.__class__.filename = tmp_filename
-        self.__class__.output_dir = tmp_output_dir
-        self.__class__.html_name = tmp_html_name
+        self.filename = self.saved_gui_input.get_file_name()
+        self.output_dir = self.saved_gui_input.get_out_dir()
+        self.html_name = self.saved_gui_input.get_html_name()
 
-        self.selected_file.set(tmp_filename)
-        self.selected_dir.set(tmp_output_dir)
-        self.html_file_name.set(tmp_html_name)
+        self.selected_file.set(self.saved_gui_input.get_file_name())
+        self.selected_dir.set(self.saved_gui_input.get_out_dir())
+        self.html_file_name.set(self.saved_gui_input.get_html_name())
 
         self.selected_file_entry = Entry(self, width=27, textvariable=self.selected_file)
         self.selected_file_entry.grid(column=2, row=1, sticky=(W, E))
@@ -1151,8 +1205,8 @@ class GuiTraceFileAnalyzer(Frame):
         self.file_opt = options = {}
         options['defaultextension'] = '.dbg'
         options['filetypes'] = [('all files', '.*'), ('text files', '.dbg')]
-        options['initialdir'] = '/home/masys/saved-logs/'
-        options['initialfile'] = 'L49MB001.dbg'
+        options['initialdir'] = self.saved_gui_input.get_out_dir()
+        options['initialfile'] = self.saved_gui_input.get_file_name()
         options['parent'] = root
         options['title'] = 'Select a dbg file'
 
@@ -1164,12 +1218,10 @@ class GuiTraceFileAnalyzer(Frame):
 
         # defining options for opening a directory
         self.dir_opt = options = {}
-        options['initialdir'] = '/home/masys'
+        options['initialdir'] = self.saved_gui_input.get_out_dir()
         options['mustexist'] = False
         options['parent'] = root
         options['title'] = 'Result directory'
-
-
 
     def askopenfilename(self):
         """Returns an opened file in read mode.
@@ -1177,43 +1229,47 @@ class GuiTraceFileAnalyzer(Frame):
         """
 
         # get filename
-        self.__class__.filename = askopenfilename(**self.file_opt)
+        self.filename = askopenfilename(**self.file_opt)
 
         # Update UI
-        if self.__class__.filename:
-            self.selected_file.set(self.__class__.filename)
-            #print ('File selected ' + self.__class__.filename)
+        if self.filename:
+            self.selected_file.set(self.filename)
+            #print ('File selected ' + self.filename)
+            self.saved_gui_input.set_file_name(self.filename)
 
     def askdirectory(self):
         """Returns a selected directoryname."""
-        self.__class__.output_dir = askdirectory(**self.dir_opt)
+        self.output_dir = askdirectory(**self.dir_opt)
 
         # Update UI
-        if self.__class__.output_dir:
-            self.selected_dir.set(self.__class__.output_dir)
-            #print ('Directory selected ' + self.__class__.output_dir)
+        if self.output_dir:
+            self.selected_dir.set(self.output_dir)
+            #print ('Directory selected ' + self.output_dir)
+            self.saved_gui_input.set_out_dir(self.output_dir)
 
     def analyze_trace(self):
         """Starts the analyze of the given trace file """
 
         # Get the current html output name
-        self.__class__.html_name = self.html_file_name.get()
+        self.html_name = self.html_file_name.get()
+        self.saved_gui_input.set_html_name(self.html_name)
 
-        if self.__class__.filename == ' ':
+        if self.filename == ' ':
             messagebox.showerror("Trace file", "No trace file given")
-        elif self.__class__.html_name == ' ':
+        elif self.html_name == ' ':
             messagebox.showerror("Output file name", "No name given")
         else:
-            if self.__class__.output_dir == '.':
+            if self.output_dir == '.':
                 messagebox.showerror("Trace destination", "No result destination given")
 
             # Create new thread
-            thread1 = MyThread(1, self.__class__.filename, self.__class__.html_name, self.__class__.output_dir)
+            thread1 = MyThread(1, self.filename, self.html_name, self.output_dir)
             # Start new Threads
             thread1.start()
 
     def analyze_cancel(self):
         """Exit the program """
+        self.saved_gui_input.save_gui_input()
         quit()
 
 #----------------------
