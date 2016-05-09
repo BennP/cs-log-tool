@@ -11,6 +11,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 #    Astro log file analyzer
 #
 #    ToDo: - Links to ===WRAPPED and ===END yes but it jumps strange
+#          - MMCRASH detection and indication in top window
 #          - Log with only XML-In / XML-Out
 #          - Put MdiDump in a sperat file
 #          - General full seak indication at top.
@@ -743,6 +744,12 @@ class SessionGuiData:
         """
         return self.file_name
 
+    def get_file_name_path(self):
+        """
+        Get the patch to the file name
+        """
+        return os.path.dirname(os.path.abspath(self.file_name))
+
     def set_file_name(self,file_name):
         """
         Set the file name
@@ -751,7 +758,7 @@ class SessionGuiData:
 
     def get_out_dir(self):
         """
-        Get the output directory from the saved data
+        Get the output directory
         """
         return self.out_dir
 
@@ -763,7 +770,7 @@ class SessionGuiData:
 
     def get_html_name(self):
         """
-        Get the name of the html file from the saved data
+        Get the name of the html file
         """
         return self.html_name
 
@@ -1172,7 +1179,6 @@ class GuiTraceFileAnalyzer(Frame):
         self.html_file_name = StringVar()
 
         # Get old used directories if exists
-
         self.saved_gui_input = SessionGuiData('gui-save')
 
         self.filename = self.saved_gui_input.get_file_name()
@@ -1201,35 +1207,17 @@ class GuiTraceFileAnalyzer(Frame):
         Button(self, text='Analyze',          command=self.analyze_trace  ).grid(column=1, row=4, sticky=E)
         Button(self, text='Cancel',           command=self.analyze_cancel ).grid(column=2, row=4, sticky=E)
 
-        # define options for opening or saving a file
-        self.file_opt = options = {}
-        options['defaultextension'] = '.dbg'
-        options['filetypes'] = [('all files', '.*'), ('text files', '.dbg')]
-        options['initialdir'] = self.saved_gui_input.get_out_dir()
-        options['initialfile'] = self.saved_gui_input.get_file_name()
-        options['parent'] = root
-        options['title'] = 'Select a dbg file'
-
-        # This is only available on the Macintosh, and only when Navigation Services are installed.
-        #options['message'] = 'message'
-
-        # if you use the multiple file version of the module functions this option is set automatically.
-        #options['multiple'] = 1
-
-        # defining options for opening a directory
-        self.dir_opt = options = {}
-        options['initialdir'] = self.saved_gui_input.get_out_dir()
-        options['mustexist'] = False
-        options['parent'] = root
-        options['title'] = 'Result directory'
-
     def askopenfilename(self):
         """Returns an opened file in read mode.
         This time the dialog just returns a filename and the file is opened by your own code.
         """
 
         # get filename
-        self.filename = askopenfilename(**self.file_opt)
+        self.filename = askopenfilename(defaultextension = '.dbg',
+                                        initialdir= self.saved_gui_input.get_file_name_path(),
+                                        title = 'Select a dbg file',
+                                        filetypes = [('text files', '.dbg'),('all files', '.*')],
+                                        parent = root)
 
         # Update UI
         if self.filename:
@@ -1239,7 +1227,10 @@ class GuiTraceFileAnalyzer(Frame):
 
     def askdirectory(self):
         """Returns a selected directoryname."""
-        self.output_dir = askdirectory(**self.dir_opt)
+        self.output_dir = askdirectory(initialdir = self.saved_gui_input.get_out_dir(),
+                                       mustexist = False,
+                                       parent = root,
+                                       title = 'Result directory')
 
         # Update UI
         if self.output_dir:
@@ -1253,6 +1244,7 @@ class GuiTraceFileAnalyzer(Frame):
         # Get the current html output name
         self.html_name = self.html_file_name.get()
         self.saved_gui_input.set_html_name(self.html_name)
+        self.saved_gui_input.save_gui_input()
 
         if self.filename == ' ':
             messagebox.showerror("Trace file", "No trace file given")
