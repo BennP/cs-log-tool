@@ -32,6 +32,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 #            So when we pres on a line id or a now ref icone you will get to the first line of that econd in the original trace
 #          - Display who is logged in
 #          - Use CSS to reduce html size in all parts
+#          - Calculate Applfunc collected time and make a top 100 list . Applfunc may call applfunc
 #
 # --------------------------------------
 # Argument parser
@@ -57,6 +58,39 @@ class LogRow(object):
         self.row_type = row_type
         LogRow.tot_row += 1
 
+class TimeRow(object):
+    """Common base class for a line of time trace data"""
+    tot_row = 0
+
+    def __init__(self, row_id, time_stamp, row_text, row_type):
+        self.row_id = row_id
+        self.time_stamp = time_stamp
+        self.row_text = do_code_indent( html_escape( row_text.rstrip()))
+        self.row_type = row_type
+        self.time_spent = do_get_time_spent ( html_escape( row_text.rstrip()))
+        self.range_css_class = 'ts0'
+        TimeRow.tot_row += 1
+
+    def set_range_css_class(self,range):
+        """
+        Set the css class for given range
+        """
+        if range == 1:
+            self.range_css_class = 'ts1'
+        elif range == 2:
+            self.range_css_class = 'ts2'
+        elif range == 3:
+            self.range_css_class = 'ts3'
+        elif range == 4:
+            self.range_css_class = 'ts4'
+        elif range == 5:
+            self.range_css_class = 'ts5'
+
+    def get_range_css_class(self):
+        """
+        Get the css class for the row
+        """
+        return self.range_css_class
 
 # GWF Row class
 class GWFRow:
@@ -157,6 +191,15 @@ class SysParTrace:
         syspar_offset = text.find(syspar_txt);
         self.syspar = text[(syspar_offset + 29):]
         SysParTrace.syspar_count += 1
+
+# APPL Error class
+class TimeSpentSelect:
+   'Common base class for a time spent selection '
+   time_select_count = 0
+
+   def __init__(self, row_id):
+        self.row_id = row_id
+        TimeSpentSelect.time_select_count += 1
 
 # Location search  class
 class LocationSearch:
@@ -385,7 +428,6 @@ def do_db_error_table(db_list, out_file):
         out_file.write(db_line)
     out_file.write("</p>\n")
 
-
 def do_appl_error(appl_list, row_id, text):
     """If the line is a APPL-ERROR then add it to the list."""
     if text.find('APPL-ERROR') != -1:
@@ -435,6 +477,31 @@ def do_syspar_trace_table(syspar_list, out_file):
         out_file.write(syspar_line)
     out_file.write("</p>\n")
 
+def do_time_select(time_select_list, row_id, time_line_list, min_time, max_time, range):
+    """If the time is first segment """
+    #print ( time_spent)
+    #print ( min_time)
+    #print ( max_time)
+    if time_line_list[row_id].time_spent >= min_time and time_line_list[row_id].time_spent <= max_time:
+        #print ( 'Add Row ')
+        add_time_row = TimeSpentSelect(row_id)
+        time_select_list.append(add_time_row)
+        time_line_list[row_id].set_range_css_class(range)
+
+
+def do_time_select_table(time_list, out_file, min, max):
+    """Write a scrollable list with all time spent selected."""
+
+    time_line = "<p class=%s>" % ('"time-scroll"')
+    out_file.write(time_line)
+    time_header = " %f - %f \n" % (max, min)
+    out_file.write(time_header)
+
+    for index in range(len(time_list)):
+        time_line = "  <a href=%s>%s</a>\n" % ('"#' + str(time_list[index].row_id) + '"', time_list[index].row_id)
+        out_file.write(time_line)
+    out_file.write("</p>\n")
+
 def do_code_indent(text):
     """ If the line is a "APPL-OK   : :      :  X:" line then do a indention according to the level given at x. """
     """ And do some rearanging of the actual test to make it more readable                                      """
@@ -460,6 +527,36 @@ def do_code_indent(text):
             return text[:(offset + 2)] + indent_str[:(indent_number * 4)] + num[0] + '. ' + file_parts[1] + '   .' + file_parts[0] + ',' + file_parts[2] + ',' + file_parts[3]
     else:
        return text
+
+def do_get_time_spent(text):
+    """ If the line is a "APPL-OK   : :      :  X:" line then get the RealTimeSpent value """
+    if text.find('APPL-OK   : :      :') != -1:
+        offset = text.find('OK   : :      :')
+        if offset == -1:
+            print(' This line must be wrong')
+            print (text)
+            return 0.0
+        else:
+            num = text[(offset + 16):(offset + 20)].split(':',2)
+            indent_number = int (num[0])
+            indent_str = '                                                              '
+            offset_tail = text.find('./')
+            if offset == -1:
+                print(' This line must be wrong')
+                print (text)
+                return 0.0
+            # split this into several parts /ikea/lpp/astrodev/cosmos2/src/ObjL/ObjL54T1.c:3816,Assignment.SetUnderProcessing, Caller: /ikea/lpp/astrodev/cosmos2/src/ObjL/ObjL47T1.c:2223, RetOk
+            file_parts = text[(offset_tail + 1 ):].split(',',6)
+            if len(file_parts) ==4:
+                return 0.0
+            elif len(file_parts) ==5:
+                tmp_str = file_parts[4].split('=',2)
+                # print (tmp_str[1])
+                return  float( tmp_str[1] )
+            else:
+                return 0.0
+    else:
+       return 0.0
 
 def do_remove_real_time_spent(text):
     """If the line has a RealTimeSpent content then remove this """
@@ -501,6 +598,12 @@ def do_html_file_reference(out_file, file_text, to_file, css_class):
     print_h_line = "<h3 class=%s> <a href=%s>%s</a></h3>\n" % ('"' + css_class + '"', '"' + to_file + '"', file_text)
     out_file.write(print_h_line)
 
+def do_html_duration(out_file, nbr_of, min, max, css_class):
+    """Write nbr of calls with specified duration."""
+
+    print_h_line = "<h3 class=%s> %f - %f count %d </h3>\n" % ('"' + css_class + '"', max, min, nbr_of)
+    out_file.write(print_h_line)
+
 def do_html_file_stop_float(out_file):
     """Write html line to stop float."""
 
@@ -522,6 +625,14 @@ def do_html_end_wrapped_mark(wrapped_line, end_line, out_file):
                                                                                                                    end_line)
         out_file.write(print_h_line)
     out_file.write("</p>\n</div>\n")
+
+
+def do_add_button(out_file):
+    """ Add a button """
+    input_type = 'radio'
+    input_type_checkbox = 'checkbox'
+    print_h_line = "<input type=%s >" % ('"' + input_type_checkbox + '"')
+    out_file.write(print_h_line)
 
 def do_html_file_end(out_file):
     """Write html file end info."""
@@ -811,6 +922,7 @@ def parse_file(file_to_parse, output_name, output_dir):
     """
 
     line_list = []
+    time_line_list = []
 
     #-----------------
     # Main trace lists
@@ -844,20 +956,31 @@ def parse_file(file_to_parse, output_name, output_dir):
     box_calc_color_conf_list = []
 
     #-----------------
+    # Time trace lists
+    time_select_list_first = []
+    time_select_list_second = []
+    time_select_list_third = []
+    time_select_list_fourth = []
+    time_select_list_fifth = []
+
+
+    #-----------------
     # CSS text list
     css_text = []
 
     save_row_type = 0
 
-    trace_file_full_name = str(output_dir) + '/' + str(output_name) + '.html'
-    gwf_trace_file_full_name = str(output_dir) + '/' + 'GWF-' + str(output_name) + '.html'
+    trace_file_full_name            = str(output_dir) + '/' + str(output_name) + '.html'
+    gwf_trace_file_full_name        = str(output_dir) + '/' + 'GWF-' + str(output_name) + '.html'
     loc_search_trace_file_full_name = str(output_dir) + '/' + 'LocSearch-' + str(output_name) + '.html'
-    box_calc_trace_file_full_name = str(output_dir) + '/' + 'BoxCalc-' + str(output_name) + '.html'
+    box_calc_trace_file_full_name   = str(output_dir) + '/' + 'BoxCalc-' + str(output_name) + '.html'
+    time_trace_file_full_name       = str(output_dir) + '/' + 'Time-' + str(output_name) + '.html'
 
-    trace_file_name = str(output_name) + '.html'
-    gwf_trace_file_name = 'GWF-' + str(output_name) + '.html'
+    trace_file_name            = str(output_name) + '.html'
+    gwf_trace_file_name        = 'GWF-' + str(output_name) + '.html'
     loc_search_trace_file_name = 'LocSearch-' + str(output_name) + '.html'
-    box_calc_trace_file_name = 'BoxCalc-' + str(output_name) + '.html'
+    box_calc_trace_file_name   = 'BoxCalc-' + str(output_name) + '.html'
+    time_trace_file_name       = 'Time-' + str(output_name) + '.html'
 
     # Debug
     #print ('Astro log file = ' + file_to_parse)
@@ -872,6 +995,7 @@ def parse_file(file_to_parse, output_name, output_dir):
     gwf_output_file         = open(gwf_trace_file_full_name, 'w')
     loc_search_output_file  = open(loc_search_trace_file_full_name, 'w')
     box_calc_output_file    = open(box_calc_trace_file_full_name, 'w')
+    time_output_file        = open(time_trace_file_full_name, 'w')
 
     # Read the configuration files
     read_log_file_config(trace_ignore_list)
@@ -897,20 +1021,25 @@ def parse_file(file_to_parse, output_name, output_dir):
             if matchObj:
                 offset = line.find("Real=")
                 if offset == -1:
-                    add_row = LogRow(line_id,line[0:17],' ' + line[(19):],get_row_type(trace_class_list, line))
+                    add_row      = LogRow(line_id,line[0:17],' ' + line[(19):],get_row_type(trace_class_list, line))
+                    time_add_row = TimeRow(line_id,line[0:17],' ' + line[(19):],get_row_type(trace_class_list, line))
                 else:
-                    add_row = LogRow(line_id,line[0:17],line[(offset + 21):],get_row_type(trace_class_list, line))
+                    add_row      = LogRow(line_id,line[0:17],line[(offset + 21):],get_row_type(trace_class_list, line))
+                    time_add_row = TimeRow(line_id,line[0:17],line[(offset + 21):],get_row_type(trace_class_list, line))
                 save_row_type = get_row_type(trace_class_list, line)
                 do_db_error(db_list, line_id, line)
                 do_appl_error(appl_list, line_id, line)
                 do_call_trace(trace_list, line_id, line)
                 do_syspar_error(syspar_list, line_id, line)
                 line_list.append(add_row)
+                time_line_list.append(time_add_row)
                 line_id = line_id + 1
             else:
                 if not remove_pure_xml_row(line):
-                    add_row = LogRow(line_id,' ',line[0:],save_row_type)
+                    add_row      = LogRow(line_id,' ',line[0:],save_row_type)
+                    time_add_row = TimeRow(line_id,' ',line[0:],save_row_type)
                     line_list.append(add_row)
+                    time_line_list.append(time_add_row)
                     line_id = line_id + 1
 
         #------------------------------
@@ -970,6 +1099,7 @@ def parse_file(file_to_parse, output_name, output_dir):
         list_number = len(gwf_list)
 
         for index in range(len(gwf_list)):
+            do_add_button(gwf_output_file)
             print_text = gwf_list[index].row_text
 
             if print_text.find('Goods workflow completed') != -1:
@@ -1052,6 +1182,7 @@ def parse_file(file_to_parse, output_name, output_dir):
         list_number = len(loc_search_list)
 
         for index in range(len(loc_search_list)):
+            do_add_button(loc_search_output_file)
             print_text = loc_search_list[index].row_text
             print_line = "<FONT COLOR=%s>%8.1d <a name=%s></a> <FONT COLOR=%s>%s <FONT COLOR=%s>%s" % ('"grey"',index, '"' + str(index) + '"', '"green"',loc_search_list[index].time_stamp, get_loc_search_row_color(loc_search_color_conf_list, loc_search_list[index].row_type),print_text)
             loc_search_output_file.write(print_line)
@@ -1083,6 +1214,7 @@ def parse_file(file_to_parse, output_name, output_dir):
         list_number = len(box_calc_list)
 
         for index in range(len(box_calc_list)):
+            do_add_button(box_calc_output_file)
             print_text = box_calc_list[index].row_text
             print_line = "<FONT COLOR=%s>%8.1d <a name=%s></a> <FONT COLOR=%s>%s <FONT COLOR=%s>%s" % ('"grey"',index, '"' + str(index) + '"', '"green"',box_calc_list[index].time_stamp, get_box_calc_row_color(box_calc_color_conf_list, box_calc_list[index].row_type),print_text)
             box_calc_output_file.write(print_line)
@@ -1102,13 +1234,94 @@ def parse_file(file_to_parse, output_name, output_dir):
         box_calc_output_file.close()
 
     #---------------
+    #--- Time spent trace file
+    #---------------
+
+    range_1_max = 100.000000
+    range_1_min = 1.000000
+
+    range_2_max = 1.000000
+    range_2_min = 0.500000
+
+    range_3_max = 0.500000
+    range_3_min = 0.099999
+
+    range_4_max = 0.099999
+    range_4_min = 0.009999
+
+    range_5_max = 0.009999
+    range_5_min = 0.001999
+
+    do_write_css_to_file(css_text, time_output_file)
+    do_html_file_header(time_output_file, file_to_parse)
+    do_html_file_reference(time_output_file, "Main trace ", trace_file_name, 'm-file')
+
+    # do_syspar_trace_table(syspar_list, output_file)
+    # do_html_file_stop_float(time_output_file)
+
+
+    list_number = len(time_line_list)
+
+    sum_time = 0.0
+    for index in range(len(time_line_list)):
+        sum_time = sum_time + time_line_list[index].time_spent
+        do_time_select(time_select_list_first,  index, time_line_list, range_1_min, range_1_max, 1)
+        do_time_select(time_select_list_second, index, time_line_list, range_2_min, range_2_max, 2)
+        do_time_select(time_select_list_third,  index, time_line_list, range_3_min, range_3_max, 3)
+        do_time_select(time_select_list_fourth, index, time_line_list, range_4_min, range_4_max, 4)
+        do_time_select(time_select_list_fifth,  index, time_line_list, range_5_min, range_5_max, 5)
+
+    # print (sum_time)
+
+    print_h_line = "<hr> <h1> Duration time ranges </h1> </hr> \n"
+    time_output_file.write(print_h_line)
+
+    do_time_select_table(time_select_list_first,  time_output_file, range_1_min, range_1_max)
+    do_time_select_table(time_select_list_second, time_output_file, range_2_min, range_2_max)
+    do_time_select_table(time_select_list_third,  time_output_file, range_3_min, range_3_max)
+    do_time_select_table(time_select_list_fourth, time_output_file, range_4_min, range_4_max)
+    do_time_select_table(time_select_list_fifth,  time_output_file, range_5_min, range_5_max)
+    do_html_file_stop_float(time_output_file)
+
+    save_row_type = time_line_list[0].row_type
+    print_h_line = "<p class=%s >" % (get_row_class(trace_class_list, time_line_list[0].row_type))
+    time_output_file.write(print_h_line)
+
+    for index in range(len(time_line_list)):
+        do_add_button(time_output_file)
+        print_line = " <a name=%s>%8.1d</a> <mark class=%s>%s</mark>  <mark class=%s>%f</mark> %s" % ('"' + str(index) + '"', index, '"x1"', time_line_list[index].time_stamp, time_line_list[index].get_range_css_class(), time_line_list[index].time_spent, time_line_list[index].row_text)
+        #print (time_line_list[index].row_text)
+        time_output_file.write(print_line)
+
+        if (index + 1) < list_number:
+            if time_line_list[index+1].row_type == save_row_type:
+                time_output_file.write("\n")
+            else:
+                save_row_type = time_line_list[index + 1].row_type
+                print_line = "</p> \n<p class=%s >" % (get_row_class(trace_class_list, time_line_list[index+1].row_type))
+                time_output_file.write(print_line)
+
+    time_output_file.write("</p>")
+    do_html_file_end(time_output_file)
+
+    time_output_file.close()
+
+    # Calculate some sums to show on the main page
+    nbr_of_first_elapsed  = len(time_select_list_first)
+    nbr_of_second_elapsed = len(time_select_list_second)
+    nbr_of_third_elapsed  = len(time_select_list_third)
+    nbr_of_fourth_elapsed = len(time_select_list_fourth)
+    nbr_of_fifth_elapsed  = len(time_select_list_fifth)
+
+    #---------------
     #--- Trace file
     #---------------
     do_html_file_header(output_file, file_to_parse)
     do_write_css_to_file(css_text, output_file)
-    do_html_file_reference(output_file, "GWF trace ", gwf_trace_file_name, 'gwf-file')
+    do_html_file_reference(output_file, "GWF trace ",       gwf_trace_file_name,        'gwf-file')
     do_html_file_reference(output_file, "Location Search ", loc_search_trace_file_name, 'ls-file')
-    do_html_file_reference(output_file, "Box Calc ", box_calc_trace_file_name, 'box-file')
+    do_html_file_reference(output_file, "Box Calc ",        box_calc_trace_file_name,   'box-file')
+    do_html_file_reference(output_file, "Time ",            time_trace_file_name,       'time-file')
     do_html_file_stop_float(output_file)
     do_html_end_wrapped_mark(wrapped_line, end_line, output_file)
 
@@ -1118,6 +1331,14 @@ def parse_file(file_to_parse, output_name, output_dir):
     do_syspar_trace_table(syspar_list, output_file)
     do_html_file_stop_float(output_file)
 
+    do_html_duration(output_file, nbr_of_first_elapsed,  range_1_min, range_1_max, 'c1')
+    do_html_duration(output_file, nbr_of_second_elapsed, range_2_min, range_2_max, 'c2')
+    do_html_duration(output_file, nbr_of_third_elapsed,  range_3_min, range_3_max, 'c3')
+    do_html_duration(output_file, nbr_of_fourth_elapsed, range_4_min, range_4_max, 'c4')
+    do_html_duration(output_file, nbr_of_fifth_elapsed,  range_5_min, range_5_max, 'c5')
+
+    do_html_file_stop_float(output_file)
+
     save_row_type = line_list[0].row_type
     print_h_line = "<p class=%s >" % (get_row_class(trace_class_list, line_list[0].row_type))
     output_file.write(print_h_line)
@@ -1125,8 +1346,8 @@ def parse_file(file_to_parse, output_name, output_dir):
     list_number = len(line_list)
 
     for index in range(len(line_list)):
-
-        print_line = " <a name=%s>%8.1d</a> <mark class=%s>%s</mark> %s" % ('"' + str(index) + '"', index, '"x1"', line_list[index].time_stamp, line_list[index].row_text)
+        do_add_button(output_file)
+        print_line = "<a name=%s>%8.1d</a> <mark class=%s>%s</mark> %s" % ('"' + str(index) + '"', index, '"x1"', line_list[index].time_stamp, line_list[index].row_text)
         output_file.write(print_line)
 
         if (index + 1) < list_number:
