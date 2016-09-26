@@ -19,10 +19,6 @@ from tkinter.filedialog import askopenfilename, askdirectory
 #            vellknown types. libmdi.FullScan. Shoe what table it is done on
 #                   APPL-ERROR: :      : 13:............./home/sebenpo/projects/x.x/master/src/mdi/libmdi.c:3627,libmdi.FullScan, Caller: /home/sebenpo/projects/x.x/cosmos2/src/ObjG/ObjG09T1.c:2882, Table: SSG10001.shorto42
 #          - Events that are not deffined indicated at the top
-#          - Make a separat html file where Real Time spent is indicated.
-#            With a in parameter decide if you whant Real Time data
-#            and indication on what level.
-#            "RealTimeSpent=0.000065" and "Real=0020851.669305"
 #          - Make the file refernces to places in the source code
 #            into actual links that can start a
 #            editor at the right place
@@ -241,6 +237,46 @@ class LocSearchIgnore:
         self.ident_text = ident_text
         LocSearchIgnore.tot_row += 1
 
+# RPC trafic class
+class ClientTrafic:
+   'Common base class for Client Trafic config data'
+   tot_row = 0
+
+   def __init__(self, ident_text):
+        self.ident_text = ident_text
+        ClientTrafic.tot_row += 1
+
+# Client Trafic Row class
+class ClientTraficRow:
+   'Common base class for a line of Client Trafic trace data'
+   tot_row = 0
+
+   def __init__(self, row_id, time_stamp, row_text, row_type):
+        self.row_id = row_id
+        self.time_stamp = time_stamp
+        self.row_text = html_escape(row_text.rstrip())
+        self.row_type = row_type
+        ClientTraficRow.tot_row += 1
+
+# Client Trafic color config class
+class ClientTraficConf:
+   'Common base class for a Client Trafic color config data'
+   tot_row = 0
+
+   def __init__(self, ident_text, color_text):
+        self.ident_text = ident_text
+        self.color_text = color_text
+        ClientTraficConf.tot_row += 1
+
+# Client Trafic ignore class
+class ClientTraficIgnore:
+   """Common base class for Client Trafic Ignore config data"""
+   tot_row = 0
+
+   def __init__(self, ident_text):
+        self.ident_text = ident_text
+        ClientTraficIgnore.tot_row += 1
+
 # Box Calc  class
 class BoxCalc:
    'Common base class for BoxCalc config data'
@@ -289,7 +325,7 @@ def get_row_type(row_class_list, text):
 def get_row_class(class_list, id):
     """Get row class """
     if id == -1:
-        return '"norm"'
+        return '"n1"'
     return '"' + class_list[id].class_text + '"'
 
 def get_gwf_row_type(conf_list, text):
@@ -349,6 +385,33 @@ def get_loc_search_row_color(color_conf_list, id):
 
 def limit_loacsearch_trace(ignore_list, text):
     """Determine location search row that should be ignored."""
+    for index in range(len(ignore_list)):
+        if text.find(ignore_list[index].ident_text) != -1:
+            return True
+    return False
+
+def is_client_trafic_trace(conf_list, text):
+    """Determine if text is client trafic that should be included."""
+    for index in range(len(conf_list)):
+        if text.find(conf_list[index].ident_text) != -1:
+            return True
+    return False
+
+def get_client_trafic_row_type(color_conf_list, text):
+    """Determine Client Trafic row type from text."""
+    for index in range(len(color_conf_list)):
+        if text.find(color_conf_list[index].ident_text) != -1:
+            return index
+    return -1
+
+def get_client_trafic_row_color(color_conf_list, id):
+    """Get Location Search row color """
+    if id == -1:
+        return '"black"'
+    return '"' + color_conf_list[id].color_text + '"'
+
+def limit_client_trafic_trace(ignore_list, text):
+    """Determine client trafic row that should be ignored."""
     for index in range(len(ignore_list)):
         if text.find(ignore_list[index].ident_text) != -1:
             return True
@@ -514,7 +577,8 @@ def do_code_indent(text):
         else:
             num = text[(offset + 16):(offset + 20)].split(':',2)
             indent_number = int (num[0])
-            indent_str = '                                                              '
+            #indent_str = '                                                              '
+            indent_str = '     |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |   '
             offset_tail = text.find('./')
             if offset == -1:
                 print(' This line must be wrong')
@@ -626,7 +690,6 @@ def do_html_end_wrapped_mark(wrapped_line, end_line, out_file):
         out_file.write(print_h_line)
     out_file.write("</p>\n</div>\n")
 
-
 def do_add_button(out_file):
     """ Add a button """
     input_type = 'radio'
@@ -735,7 +798,7 @@ def read_location_search_config(color_list, ignore_list, search_list):
             ignore_list.append(add_row)
         loc_ignore_file.close()
     except IOError:
-        print ("Error: can\'t find file or read data " + '-ignore.conf')
+        print ("Error: can\'t find file or read data " + 'loc-search-ignore.conf')
         raise
 
     try:
@@ -746,6 +809,45 @@ def read_location_search_config(color_list, ignore_list, search_list):
         loc_search_file.close()
     except IOError:
         print ("Error: can\'t find file or read data " + 'loc-search.conf')
+        raise
+
+def read_client_trafic_config(color_list, ignore_list, search_list):
+    """ Read the client trafic configuration files.
+       Ignore lines,
+       Colour settings """
+
+    config_path = get_config_path()
+
+    try:
+        client_trafic_color_config_file    = open(config_path + 'client-trafic-color.conf')
+        for conf_line in client_trafic_color_config_file:
+            tmp_conf = conf_line.rstrip()
+            parts = tmp_conf.split(';',2)
+            add_row = ClientTraficConf(parts[0],parts[1])
+            color_list.append(add_row)
+        client_trafic_color_config_file.close()
+    except IOError:
+        print ("Error: can\'t find file or read data " + 'client-trafic-color.conf')
+        raise
+
+    try:
+        client_trafic_ignore_file    = open(config_path + 'client-trafic-ignore.conf')
+        for ignore_line in client_trafic_ignore_file:
+            add_row = ClientTraficIgnore(ignore_line.rstrip())
+            ignore_list.append(add_row)
+        client_trafic_ignore_file.close()
+    except IOError:
+        print ("Error: can\'t find file or read data " + 'client-trafic-ignore.conf')
+        raise
+
+    try:
+        client_trafic_file    = open(config_path + 'client-trafic.conf')
+        for line in client_trafic_file:
+            add_row = ClientTrafic(line.rstrip())
+            search_list.append(add_row)
+        client_trafic_file.close()
+    except IOError:
+        print ("Error: can\'t find file or read data " + 'client-trafic.conf')
         raise
 
 def read_box_calc_config(color_list, conf_list):
@@ -950,6 +1052,13 @@ def parse_file(file_to_parse, output_name, output_dir):
     loc_ignore_list = []
 
     #-----------------
+    # Client Trafic trace lists
+    client_trafic_list = []
+    client_trafic_conf_list = []
+    client_trafic_color_conf_list = []
+    client_trafic_ignore_list = []
+
+    #-----------------
     # BoxCalc trace lists
     box_calc_list = []
     box_calc_conf_list = []
@@ -970,37 +1079,42 @@ def parse_file(file_to_parse, output_name, output_dir):
 
     save_row_type = 0
 
-    trace_file_full_name            = str(output_dir) + '/' + str(output_name) + '.html'
-    gwf_trace_file_full_name        = str(output_dir) + '/' + 'GWF-' + str(output_name) + '.html'
-    loc_search_trace_file_full_name = str(output_dir) + '/' + 'LocSearch-' + str(output_name) + '.html'
-    box_calc_trace_file_full_name   = str(output_dir) + '/' + 'BoxCalc-' + str(output_name) + '.html'
-    time_trace_file_full_name       = str(output_dir) + '/' + 'Time-' + str(output_name) + '.html'
+    trace_file_full_name               = str(output_dir) + '/' + str(output_name) + '.html'
+    gwf_trace_file_full_name           = str(output_dir) + '/' + 'GWF-' + str(output_name) + '.html'
+    loc_search_trace_file_full_name    = str(output_dir) + '/' + 'LocSearch-' + str(output_name) + '.html'
+    client_trafic_trace_file_full_name = str(output_dir) + '/' + 'ClientTrafic-' + str(output_name) + '.html'
+    box_calc_trace_file_full_name      = str(output_dir) + '/' + 'BoxCalc-' + str(output_name) + '.html'
+    time_trace_file_full_name          = str(output_dir) + '/' + 'Time-' + str(output_name) + '.html'
 
-    trace_file_name            = str(output_name) + '.html'
-    gwf_trace_file_name        = 'GWF-' + str(output_name) + '.html'
-    loc_search_trace_file_name = 'LocSearch-' + str(output_name) + '.html'
-    box_calc_trace_file_name   = 'BoxCalc-' + str(output_name) + '.html'
-    time_trace_file_name       = 'Time-' + str(output_name) + '.html'
+    trace_file_name               = str(output_name) + '.html'
+    gwf_trace_file_name           = 'GWF-' + str(output_name) + '.html'
+    loc_search_trace_file_name    = 'LocSearch-' + str(output_name) + '.html'
+    client_trafic_trace_file_name = 'ClientTrafic-' + str(output_name) + '.html'
+    box_calc_trace_file_name      = 'BoxCalc-' + str(output_name) + '.html'
+    time_trace_file_name          = 'Time-' + str(output_name) + '.html'
 
     # Debug
     #print ('Astro log file = ' + file_to_parse)
     #print ('Output file    = ' + trace_file_full_name)
     #print ('Output file GWF  = ' + gwf_trace_file_full_name)
     #print ('Output file LocSearch  = ' + loc_search_trace_file_full_name)
+    #print ('Output file ClientTrafic  = ' + client_trafic_trace_file_full_name)
     #print ('Output file BoxCalc  = ' + box_calc_trace_file_full_name)
 
     # Open files
-    log_file                = open(file=file_to_parse, encoding='iso-8859-1')
-    output_file             = open(trace_file_full_name, 'w')
-    gwf_output_file         = open(gwf_trace_file_full_name, 'w')
-    loc_search_output_file  = open(loc_search_trace_file_full_name, 'w')
-    box_calc_output_file    = open(box_calc_trace_file_full_name, 'w')
-    time_output_file        = open(time_trace_file_full_name, 'w')
+    log_file                   = open(file=file_to_parse, encoding='iso-8859-1')
+    output_file                = open(trace_file_full_name, 'w')
+    gwf_output_file            = open(gwf_trace_file_full_name, 'w')
+    loc_search_output_file     = open(loc_search_trace_file_full_name, 'w')
+    client_trafic_output_file  = open(client_trafic_trace_file_full_name, 'w')
+    box_calc_output_file       = open(box_calc_trace_file_full_name, 'w')
+    time_output_file           = open(time_trace_file_full_name, 'w')
 
     # Read the configuration files
     read_log_file_config(trace_ignore_list)
     read_gwf_config(gwf_select_conf_list, gwf_conf_list, gwf_ignore_list)
     read_location_search_config(loc_search_color_conf_list, loc_ignore_list, loc_search_conf_list)
+    read_client_trafic_config(client_trafic_color_conf_list, client_trafic_ignore_list, client_trafic_conf_list)
     read_box_calc_config(box_calc_color_conf_list, box_calc_conf_list)
     read_css_config(trace_class_list, css_text)
 
@@ -1012,6 +1126,7 @@ def parse_file(file_to_parse, output_name, output_dir):
     line_id = 0
     gwf_line_id = 0
     loc_line_id = 0
+    trafic_line_id = 0
     box_line_id = 0
     for line in log_file:
         if not limit_trace(trace_ignore_list, line):
@@ -1060,6 +1175,13 @@ def parse_file(file_to_parse, output_name, output_dir):
                     add_row = LocSearchRow(loc_line_id,line[0:17],line[(offset + 21):],get_loc_search_row_type(loc_search_conf_list, line))
                     loc_search_list.append(add_row)
                     loc_line_id = loc_line_id + 1
+            #------------------------------
+            # Find Client Trafic data
+            if is_client_trafic_trace(client_trafic_conf_list, line):
+                if not limit_client_trafic_trace(client_trafic_ignore_list, line):
+                    add_row = ClientTraficRow(loc_line_id,line[0:17],line[(offset + 21):],get_client_trafic_row_type(client_trafic_conf_list, line))
+                    client_trafic_list.append(add_row)
+                    trafic_line_id = trafic_line_id + 1
             #------------------------------
             # Find Box Calc data
             if is_box_calc_trace(box_calc_conf_list, line):
@@ -1202,6 +1324,38 @@ def parse_file(file_to_parse, output_name, output_dir):
         loc_search_output_file.close()
 
     #------------------------------
+    #--- Client Trafic
+    #---------------
+    if len(client_trafic_list) > 0:
+        do_html_file_header(client_trafic_output_file, file_to_parse)
+        do_html_file_reference(client_trafic_output_file, "Main trace ", trace_file_name, 'm-file')
+
+        print_h_line = "<p style=%s >\n" % ('"background-color:#F8F8F8"')
+        client_trafic_output_file.write(print_h_line)
+        save_row_type = client_trafic_list[0].row_type
+        list_number = len(client_trafic_list)
+
+        for index in range(len(client_trafic_list)):
+            do_add_button(client_trafic_output_file)
+            print_text = client_trafic_list[index].row_text
+            print_line = "<FONT COLOR=%s>%8.1d <a name=%s></a> <FONT COLOR=%s>%s <FONT COLOR=%s>%s" % ('"grey"',index, '"' + str(index) + '"', '"green"',client_trafic_list[index].time_stamp, get_client_trafic_row_color(client_trafic_color_conf_list, client_trafic_list[index].row_type),print_text)
+            client_trafic_output_file.write(print_line)
+
+            if (index + 1) < list_number:
+                if client_trafic_list[index+1].row_type == save_row_type:
+                    client_trafic_output_file.write("<br>\n")
+                else:
+                    save_row_type = client_trafic_list[index + 1].row_type
+                    print_line = "</p> \n<p style=%s >\n" % ('"background-color:#F8F8F8"')
+                    client_trafic_output_file.write(print_line)
+    else:
+        do_html_file_header(client_trafic_output_file, file_to_parse)
+        do_html_file_reference(client_trafic_output_file, "Main trace ", trace_file_name, 'm-file')
+
+        do_html_file_end(client_trafic_output_file)
+        client_trafic_output_file.close()
+
+    #------------------------------
     #--- Box Calc
     #---------------
     if len(box_calc_list) > 0:
@@ -1320,6 +1474,7 @@ def parse_file(file_to_parse, output_name, output_dir):
     do_write_css_to_file(css_text, output_file)
     do_html_file_reference(output_file, "GWF trace ",       gwf_trace_file_name,        'gwf-file')
     do_html_file_reference(output_file, "Location Search ", loc_search_trace_file_name, 'ls-file')
+    do_html_file_reference(output_file, "Client Trafic ",   client_trafic_trace_file_name, 'ls-file')
     do_html_file_reference(output_file, "Box Calc ",        box_calc_trace_file_name,   'box-file')
     do_html_file_reference(output_file, "Time ",            time_trace_file_name,       'time-file')
     do_html_file_stop_float(output_file)
