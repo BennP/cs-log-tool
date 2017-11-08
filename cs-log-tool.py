@@ -615,8 +615,12 @@ def do_get_time_spent(text):
                 return 0.0
             elif len(file_parts) ==5:
                 tmp_str = file_parts[4].split('=',2)
-                # print (tmp_str[1])
-                return  float( tmp_str[1] )
+                try:
+                  tmp_float = float( tmp_str[1] )
+                except IndexError:
+                    return  0.0
+                else:
+                    return tmp_float
             else:
                 return 0.0
     else:
